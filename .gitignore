@@ -1,0 +1,7 @@
+#ignore local(confidential) config file.
+config.py
+
+.ropeproject/
+
+# local virtualenv
+env/
