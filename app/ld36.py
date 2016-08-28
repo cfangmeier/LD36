@@ -1,22 +1,26 @@
-from kivy.app import App
-from kivy.core.window import Window
-from kivy.uix.widget import Widget
-from kivy.clock import Clock
-from kivy.animation import Animation
+from os.path import dirname, join, abspath
 from random import choice
+import itertools
+
+import kivy
+from kivy.app import App
+from kivy.animation import Animation
+from kivy.core.window import Window
+from kivy.core.audio import SoundLoader
+from kivy.clock import Clock
+from kivy.properties import StringProperty, NumericProperty, ListProperty
+from kivy.uix.widget import Widget
+from kivy.factory import Factory
+
 import kivent_core
 from kivent_core.gameworld import GameWorld
 from kivent_core.managers.resource_managers import texture_manager
-from kivy.properties import StringProperty, NumericProperty, ListProperty
-from os.path import dirname, join, abspath
 from kivent_core.systems.gamesystem import GameSystem
-from kivy.factory import Factory
+
 import noise
 
 from app.tilesystem import TileSystem
 
-# TILES = {'desert': 'desert.png',
-#          'grass': 'grass.png'}
 TILES = {'desert': 'desert.png',
          'grass': 'grass.png',
          'hills': 'hills.png',
@@ -24,7 +28,7 @@ TILES = {'desert': 'desert.png',
          'wetland': 'wetland.png'}
 
 
-def get_asset_path(asset, asset_loc):
+def asset_path(asset, asset_loc):
     return join(dirname(dirname(abspath(__file__))), asset_loc, asset)
 
 
@@ -42,6 +46,7 @@ class TestGame(Widget):
 
     def init_game(self):
         Window.size = (64*15, 64*15)
+        self.setup_sound()
         self.setup_states()
         self.load_textures()
         self.load_models()
@@ -79,24 +84,32 @@ class TestGame(Widget):
             anim.start(self.gameworld.camera)
 
         elif text in '=-':
-            zoom = {'=': 1.1,
-                    '-': .9}
-            current_zoom = self.gameworld.camera.camera_scale
-            new_zoom = current_zoom*zoom[text]
-            if 0.25 < new_zoom < 4:
-                self.gameworld.camera.camera_scale = new_zoom
+            scale = self.gameworld.camera.camera_scale
+            if text == '=':
+                scale_new = scale * 1.1
+            else:
+                scale_new = scale / 1.1
+            if 0.25 < scale_new < 4:
+                pos_x, pos_y = self.gameworld.camera.camera_pos
+                size_x, size_y = Window.size
+                center_x, center_y = (-pos_x + size_x*scale/2,
+                                      -pos_y + size_y*scale/2)
+                pos_x_new, pos_y_new = (0.5*size_x*scale_new-center_x,
+                                        0.5*size_y*scale_new-center_y)
+                self.gameworld.camera.camera_scale = scale_new
+                self.gameworld.camera.camera_pos = pos_x_new, pos_y_new
         elif text == '/':
             print('Window Size:', Window.size)
-            print("Current Zoom: ", self.gameworld.camera.camera_scale)
-            print("Current Position: ", self.gameworld.camera.camera_pos)
+            print("Camera Position: ", self.gameworld.camera.camera_pos)
+            print("Camera Scale: ", self.gameworld.camera.camera_scale)
+            # print(dir(self.gameworld.camera))
         elif text == 'q':
             Window.close()
         return True
 
     def load_textures(self):
         for tile_file in TILES.values():
-            texture_manager.load_image(get_asset_path(tile_file,
-                                                      'assets/tiles'))
+            texture_manager.load_image(asset_path(tile_file, 'assets/tiles'))
 
     def load_models(self):
         model_manager = self.gameworld.model_manager
@@ -112,9 +125,9 @@ class TestGame(Widget):
             for y in range(tile_system.tiles_in_y):
                 scale = 20
                 val = noise.snoise2(x/scale, y/scale)
-                if val < -.4:
+                if val < -.6:
                     model_key = 'wetland'
-                elif val < .4:
+                elif val < .6:
                     model_key = 'grass'
                 else:
                     model_key = 'mountains'
@@ -130,6 +143,42 @@ class TestGame(Widget):
 
     def set_state(self):
         self.gameworld.state = 'main'
+
+    def setup_sound(self):
+        self.sounds = {
+            'main1abc': 'Main1abc.wav',
+            'main1bc': 'Main1bc.wav',
+            'main1intro': 'Main1Intro.wav',
+            'main2ab': 'Main2ab.wav',
+            'main2abc': 'Main2abc.wav',
+            'main2ac': 'Main2ac.wav',
+            'main2b': 'Main2b.wav',
+            'main2bc': 'Main2bc.wav',
+            'main3a': 'Main3a.wav',
+            'main3ab': 'Main3ab.wav',
+            'main3abc': 'Main3abc.wav',
+            'main3b': 'Main3b.wav',
+            }
+        self.sound_cycle = itertools.cycle([
+            'main1intro', 'main1abc', 'main1bc',
+            'main2bc', 'main2ab', 'main2b',
+            'main2bc', 'main2abc', 'main2ac',
+            'main1abc', 'main1abc', 'main2bc',
+            'main3b', 'main3a', 'main3abc',
+            'main1abc', 'main3ab', 'main3b'])
+        for key in self.sounds.keys():
+            self.sounds[key] = self.load_sound(self.sounds[key])
+        self.play_next()
+
+    def load_sound(self, filename):
+        sound = SoundLoader.load(asset_path(filename, 'assets/sound'))
+        sound.on_stop = self.play_next
+        return sound
+
+    def play_next(self, *args, **kwargs):
+        next_sound = next(self.sound_cycle)
+        print("playing next song: \"{}\"".format(next_sound))
+        self.sounds[next_sound].play()
 
 
 class LD36(App):

@@ -1,5 +1,5 @@
 #:kivy 1.9.0
-#:import get_asset_path app.ld36.get_asset_path
+#:import asset_path app.ld36.asset_path
 
 TestGame:
 
@@ -25,7 +25,7 @@ TestGame:
             frame_count: 2
             gameview: 'camera1'
             updateable: True
-            shader_source: get_asset_path('positionshader.glsl', 'assets/glsl')
+            shader_source: asset_path('positionshader.glsl', 'assets/glsl')
         GameView:
             system_id: 'camera1'
             gameworld: gameworld

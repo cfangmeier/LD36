@@ -18,8 +18,8 @@ class TileSystem(GameSystem):
         super(TileSystem, self).__init__(**kwargs)
         self.tiles_on_screen_last_frame = set()
         self.tile_trigger = Clock.create_trigger(self.handle_tile_drawing)
+        self.calc_tiles(0)
         self.calc_tiles_trigger = Clock.create_trigger(self.calc_tiles)
-        self.calc_tiles_trigger()
 
     def calc_tiles(self, dt):
         self.tiles = [[None for y in range(self.tiles_in_y)] for x in range(
@@ -129,13 +129,6 @@ class TileSystem(GameSystem):
         component.texture = args.get('texture')
         component.tile_pos = tx, ty = args.get('tile_pos')
         component.current_entity = None
-        while True:
-            try:
-                self.tiles[tx][ty] = component_index
-                break
-            except Exception as e:
-                print(e)
-                sleep(0.05)  # fixes some weird timing error
-                continue
+        self.tiles[tx][ty] = component_index
 
 Factory.register('TileSystem', cls=TileSystem)
