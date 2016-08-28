@@ -5,3 +5,6 @@ config.py
 
 # local virtualenv
 env/
+
+__pycache__
+*.pyc

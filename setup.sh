@@ -9,13 +9,12 @@ python -m venv env
 ./env/bin/pip install -r requirements.txt
 
 # Install KivEnt (not on Pypi)
-wget https://github.com/kivy/KivEnt/tarball/master -O master.tar.xz
-tar -xf master.tar.xz
-mv kivy-kivent-* kivy-kivent
-cd kivy-kivent/modules/core/
+git clone git@github.com:kivy/kivent.git
+cd kivent
+git checkout 2.2-dev
+cd modules/core/
 ../../../env/bin/python setup.py install
-cd -
-rm -f master.tar.xz
-rm -rf kivy-kivent
+cd ../../..
+# rm -rf kivent
 
 

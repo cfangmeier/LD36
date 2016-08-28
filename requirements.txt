@@ -1,5 +1,5 @@
 cython
 kivy
--e git+ssh://git@github.com/tito/cymunk.git#egg=cymunk
+PyTMX
 
 ipython
