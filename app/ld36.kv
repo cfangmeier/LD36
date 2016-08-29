@@ -9,10 +9,11 @@ TestGame:
         id: gameworld
         gamescreenmanager: gamescreenmanager
         size_of_gameworld: 100*1024
-        system_count: 3
+        system_count: 4
         zones: {'general': 160000}
         camera: camera1
-        tiles: tiles
+        background: background
+        buildings: buildings
         PositionSystem2D:
             system_id: 'position'
             gameworld: gameworld
@@ -35,12 +36,21 @@ TestGame:
             do_scroll_lock: False
             id: camera1
         TileSystem:
-            system_id: 'tiles'
-            id: tiles
+            system_id: 'background'
+            id: background
             gameworld: gameworld
             camera_pos: camera1.camera_pos
             camera_size: camera1.size
             camera_scale: camera1.camera_scale
+            gen_new_tile: root.gen_background_tile
+        TileSystem:
+            system_id: 'buildings'
+            id: buildings
+            gameworld: gameworld
+            camera_pos: camera1.camera_pos
+            camera_size: camera1.size
+            camera_scale: camera1.camera_scale
+            gen_new_tile: root.gen_building_tile
     GameScreenManager:
         id: gamescreenmanager
 

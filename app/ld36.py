@@ -21,11 +21,19 @@ import noise
 
 from app.tilesystem import TileSystem
 
-TILES = {'desert': 'desert.png',
-         'grass': 'grass.png',
-         'hills': 'hills.png',
-         'mountains': 'mountains.png',
-         'wetland': 'wetland.png'}
+TILES = {
+    'desert': 'desert.png',
+    'grass': 'grass.png',
+    'hills': 'hills.png',
+    'mountains': 'mountains.png',
+    'wetland': 'wetland.png',
+    'house': 'house.png',
+    'granary': 'granary.png',
+    'field': 'field.png',
+    'well': 'well.png',
+    'blank': 'blank.png',
+    }
+MUTE = True
 
 
 def asset_path(asset, asset_loc):
@@ -41,7 +49,7 @@ class TestGame(Widget):
         super(TestGame, self).__init__(**kwargs)
         self.in_motion = False
         self.gameworld.init_gameworld(
-            ['renderer', 'position', 'camera1', 'tiles'],
+            ['renderer', 'position', 'camera1', 'background'],
             callback=self.init_game)
 
     def init_game(self):
@@ -51,7 +59,8 @@ class TestGame(Widget):
         self.load_textures()
         self.load_models()
         self.set_state()
-        self.setup_tiles()
+        self.setup_background()
+        self.setup_buildings()
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
 
@@ -60,7 +69,6 @@ class TestGame(Widget):
         self._keyboard = None
 
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-        # print(text)
         if not text:
             return True
         if not self.in_motion and text in 'wsad':
@@ -102,10 +110,26 @@ class TestGame(Widget):
             print('Window Size:', Window.size)
             print("Camera Position: ", self.gameworld.camera.camera_pos)
             print("Camera Scale: ", self.gameworld.camera.camera_scale)
-            # print(dir(self.gameworld.camera))
         elif text == 'q':
             Window.close()
         return True
+
+    def on_touch_down(self, event):
+        print(event.pos)
+        cam = self.gameworld.camera
+        scale = cam.camera_scale
+        cam_size = Window.size
+        cam_pos = cam.camera_scale
+        world_pos = ((event.pos[0]*scale-cam.camera_pos[0])/scale,
+                     (event.pos[1]*scale-cam.camera_pos[1]/scale))
+        print(world_pos)
+        tile_height = self.gameworld.buildings.tile_height*scale
+        tile_width = self.gameworld.buildings.tile_width*scale
+        tile_pos = ((world_pos[0]+tile_width/2)//tile_width,
+                    (world_pos[1]+tile_height/2)//tile_height)
+        print(tile_pos)
+        self.gameworld.buildings.update_tile(tile_pos[0], tile_pos[1],
+                                             texture='field')
 
     def load_textures(self):
         for tile_file in TILES.values():
@@ -118,24 +142,16 @@ class TestGame(Widget):
                                                   64., 64.,
                                                   tile, tile)
 
-    def setup_tiles(self):
-        init_entity = self.gameworld.init_entity
-        tile_system = self.ids.tiles
-        for x in range(tile_system.tiles_in_x):
-            for y in range(tile_system.tiles_in_y):
-                scale = 20
-                val = noise.snoise2(x/scale, y/scale)
-                if val < -.6:
-                    model_key = 'wetland'
-                elif val < .6:
-                    model_key = 'grass'
-                else:
-                    model_key = 'mountains'
-                create_dict = {
-                    'tiles': {'texture': model_key, 'tile_pos': (x, y)},
-                }
-                init_entity(create_dict, ['tiles'])
-        tile_system.tile_trigger()
+    def setup_background(self):
+        self.gameworld.background.initialized = True
+        self.gameworld.background.tile_trigger()
+
+    def setup_buildings(self):
+        self.gameworld.background.initialized = True
+        self.gameworld.buildings.tile_trigger()
+
+    def get_tile_at(self, x, y):
+        pass
 
     def setup_states(self):
         self.gameworld.add_state(state_name='main', systems_added=['renderer'],
@@ -146,26 +162,9 @@ class TestGame(Widget):
 
     def setup_sound(self):
         self.sounds = {
-            'main1abc': 'Main1abc.wav',
-            'main1bc': 'Main1bc.wav',
-            'main1intro': 'Main1Intro.wav',
-            'main2ab': 'Main2ab.wav',
-            'main2abc': 'Main2abc.wav',
-            'main2ac': 'Main2ac.wav',
-            'main2b': 'Main2b.wav',
-            'main2bc': 'Main2bc.wav',
-            'main3a': 'Main3a.wav',
-            'main3ab': 'Main3ab.wav',
-            'main3abc': 'Main3abc.wav',
-            'main3b': 'Main3b.wav',
+            'main_theme': 'LD36.ogg',
             }
-        self.sound_cycle = itertools.cycle([
-            'main1intro', 'main1abc', 'main1bc',
-            'main2bc', 'main2ab', 'main2b',
-            'main2bc', 'main2abc', 'main2ac',
-            'main1abc', 'main1abc', 'main2bc',
-            'main3b', 'main3a', 'main3abc',
-            'main1abc', 'main3ab', 'main3b'])
+        self.sound_cycle = itertools.cycle(['main_theme'])
         for key in self.sounds.keys():
             self.sounds[key] = self.load_sound(self.sounds[key])
         self.play_next()
@@ -178,8 +177,36 @@ class TestGame(Widget):
     def play_next(self, *args, **kwargs):
         next_sound = next(self.sound_cycle)
         print("playing next song: \"{}\"".format(next_sound))
+        if MUTE:
+            self.sounds[next_sound].volume = 0
+        else:
+            self.sounds[next_sound].volume = 1
         self.sounds[next_sound].play()
 
+    def gen_background_tile(self, x, y):
+        if not self.gameworld.background.initialized:
+            return
+        scale = 20
+        val = noise.snoise2(x/scale, y/scale)
+        if val < -.6:
+            model_key = 'wetland'
+        elif val < .6:
+            model_key = 'grass'
+        else:
+            model_key = 'mountains'
+        create_dict = {
+            'background': {'texture': model_key, 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['background'])
+
+    def gen_building_tile(self, x, y):
+        if not self.gameworld.background.initialized:
+            return
+        scale = 20
+        create_dict = {
+            'buildings': {'texture': 'blank', 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['buildings'])
 
 class LD36(App):
     pass
