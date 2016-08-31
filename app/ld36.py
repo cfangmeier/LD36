@@ -27,6 +27,7 @@ TILES = {
     'hills': 'hills.png',
     'mountains': 'mountains.png',
     'wetland': 'wetland.png',
+
     'house': 'house.png',
     'granary': 'granary.png',
     'field': 'field.png',
@@ -48,9 +49,10 @@ class TestGame(Widget):
     def __init__(self, **kwargs):
         super(TestGame, self).__init__(**kwargs)
         self.in_motion = False
-        self.gameworld.init_gameworld(
-            ['renderer', 'position', 'camera1', 'background'],
-            callback=self.init_game)
+        gamesystems = ['renderer', 'position',
+                       'camera1', 'background',
+                       'buildings']
+        self.gameworld.init_gameworld(gamesystems, callback=self.init_game)
 
     def init_game(self):
         Window.size = (64*15, 64*15)
@@ -115,21 +117,24 @@ class TestGame(Widget):
         return True
 
     def on_touch_down(self, event):
-        print(event.pos)
-        cam = self.gameworld.camera
-        scale = cam.camera_scale
-        cam_size = Window.size
-        cam_pos = cam.camera_scale
-        world_pos = ((event.pos[0]*scale-cam.camera_pos[0])/scale,
-                     (event.pos[1]*scale-cam.camera_pos[1]/scale))
-        print(world_pos)
-        tile_height = self.gameworld.buildings.tile_height*scale
-        tile_width = self.gameworld.buildings.tile_width*scale
+        scale = self.gameworld.camera.camera_scale
+        cam_pos = self.gameworld.camera.camera_pos
+        tile_height = self.gameworld.buildings.tile_height
+        tile_width = self.gameworld.buildings.tile_width
+        world_pos = ((event.pos[0]*scale-cam_pos[0]),
+                     (event.pos[1]*scale-cam_pos[1]))
         tile_pos = ((world_pos[0]+tile_width/2)//tile_width,
                     (world_pos[1]+tile_height/2)//tile_height)
-        print(tile_pos)
-        self.gameworld.buildings.update_tile(tile_pos[0], tile_pos[1],
-                                             texture='field')
+        comp = self.gameworld.buildings.get_tile(*tile_pos)
+        print(comp.texture)
+        cycle = {'blank': 'well',
+                 'well': 'house',
+                 'house': 'granary',
+                 'granary': 'field',
+                 'field': 'blank'}
+        self.gameworld.buildings.set_tile(tile_pos[0],
+                                          tile_pos[1],
+                                          texture=cycle[comp.texture])
 
     def load_textures(self):
         for tile_file in TILES.values():
@@ -139,7 +144,7 @@ class TestGame(Widget):
         model_manager = self.gameworld.model_manager
         for tile in TILES.keys():
             model_manager.load_textured_rectangle('vertex_format_4f',
-                                                  64., 64.,
+                                                  64., -64.,
                                                   tile, tile)
 
     def setup_background(self):
@@ -154,7 +159,8 @@ class TestGame(Widget):
         pass
 
     def setup_states(self):
-        self.gameworld.add_state(state_name='main', systems_added=['renderer'],
+        self.gameworld.add_state(state_name='main',
+                                 systems_added=['renderer'],
                                  systems_unpaused=['renderer'])
 
     def set_state(self):
@@ -202,11 +208,11 @@ class TestGame(Widget):
     def gen_building_tile(self, x, y):
         if not self.gameworld.background.initialized:
             return
-        scale = 20
         create_dict = {
             'buildings': {'texture': 'blank', 'tile_pos': (x, y)},
         }
         self.gameworld.init_entity(create_dict, ['buildings'])
+
 
 class LD36(App):
     pass

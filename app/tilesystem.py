@@ -99,7 +99,7 @@ class TileSystem(GameSystem):
                     tiles_in_view.append(tile)
         return tiles_in_view
 
-    def update_tile(self, x, y, **kwargs):
+    def set_tile(self, x, y, **kwargs):
         if (x, y) not in self.tiles:
             self.gen_new_tile(x, y)
         component = self.components[self.tiles[(x, y)]]
@@ -107,6 +107,12 @@ class TileSystem(GameSystem):
             setattr(component, key, val)
         component.dirty = True
         self.tile_trigger()
+
+    def get_tile(self, x, y):
+        if (x, y) not in self.tiles:
+            self.gen_new_tile(x, y)
+        component = self.components[self.tiles[(x, y)]]
+        return component
 
     def init_component(self, component_index, entity_id, zone, args):
         component = self.components[component_index]

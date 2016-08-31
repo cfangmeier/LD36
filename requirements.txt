@@ -1,5 +1,6 @@
 cython
 kivy
 PyTMX
+noise
 
 ipython
