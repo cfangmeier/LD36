@@ -1,9 +1,10 @@
 #:kivy 1.9.0
 #:import asset_path app.ld36.asset_path
+#:import TileSystem app.tilesystem.Terrain
 
-TestGame:
+Game:
 
-<TestGame>:
+<Game>:
     gameworld: gameworld
     GameWorld:
         id: gameworld
@@ -12,8 +13,7 @@ TestGame:
         system_count: 4
         zones: {'general': 160000}
         camera: camera1
-        background: background
-        buildings: buildings
+        terrain: terrain
         PositionSystem2D:
             system_id: 'position'
             gameworld: gameworld
@@ -35,24 +35,13 @@ TestGame:
             pos: root.pos
             do_scroll_lock: False
             id: camera1
-        TileSystem:
-            system_id: 'background'
-            id: background
+        Terrain:
+            system_id: 'terrain'
+            id: terrain
             gameworld: gameworld
             camera_pos: camera1.camera_pos
             camera_size: camera1.size
             camera_scale: camera1.camera_scale
-            gen_new_tile: root.gen_background_tile
-        TileSystem:
-            system_id: 'buildings'
-            id: buildings
-            gameworld: gameworld
-            camera_pos: camera1.camera_pos
-            camera_size: camera1.size
-            camera_scale: camera1.camera_scale
-            gen_new_tile: root.gen_building_tile
+            gen_new_tile: root.gen_terrain_tile
     GameScreenManager:
         id: gamescreenmanager
-
-# <Character>:
-#     state = 
