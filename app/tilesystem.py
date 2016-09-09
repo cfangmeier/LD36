@@ -1,4 +1,4 @@
-import os.path as path
+from itertools import product
 
 from kivy.clock import Clock
 from kivy.properties import NumericProperty, ListProperty
@@ -21,6 +21,7 @@ class TileSystem(GameSystem):
     camera_pos = ListProperty(None, allownone=True)
     camera_size = ListProperty(None, allownone=True)
     camera_scale = NumericProperty(1.)
+    atlas = None
 
     def __init__(self, **kwargs):
         super(TileSystem, self).__init__(**kwargs)
@@ -30,17 +31,15 @@ class TileSystem(GameSystem):
         self.initialized = False
 
     def setup(self):
-        ld_img = texture_manager.load_image
+        import json
+        atlas_path = asset_path('{}.atlas'.format(self.atlas), 'assets/textures')
+        texture_manager.load_atlas(atlas_path)
         ld_rec = self.gameworld.model_manager.load_textured_rectangle
-        for tile in self.tile_models:
-            tex_file = asset_path(tile['texture_file'], 'assets/textures')
-            tex_name = path.splitext(path.basename(tex_file))[0]
-            print("Creating Texture for tile: {}".format(tex_name))
-            ld_img(tex_file)
-            mod_name = tile['model']
-            print("Creating Model for tile: {}".format(mod_name))
-            model_name = ld_rec('vertex_format_4f', 64., -64., tex_name, mod_name)
-            print('Model name:', model_name)
+        with open(atlas_path) as atlas:
+            js = json.load(atlas)
+            self.tile_keys = js['{}-0.png'.format(self.atlas)].keys()
+        for tile in self.tile_keys:
+            ld_rec('vertex_format_4f', 64., 64., tile, tile)
         self.initialized = True
         self.tile_trigger()
 
@@ -79,7 +78,8 @@ class TileSystem(GameSystem):
                 # print(model)
                 create_dict = {
                     'position': screen_pos,
-                    'renderer': {'model_key': model},
+                    'renderer': {'texture': model,
+                                 'model_key': model}
                     }
                 ent = init_entity(create_dict, ['position', 'renderer'])
                 tile_comp.current_entity = ent
@@ -136,43 +136,94 @@ class TileSystem(GameSystem):
         return component
 
     def init_component(self, component_index, entity_id, zone, args):
+        raise NotImplementedError("Override this in the subclass!")
+
+    def gen_new_tile(self, x, y):
+        raise NotImplementedError("Override this in the subclass!")
+
+
+class Terrain(TileSystem):
+    atlas = 'terrain'
+
+    def gen_new_tile(self, x, y):
+        import noise
+        scale = 20
+        val = noise.snoise2(x/scale, y/scale)
+        if val < -.6:
+            model_key = 'hills'
+        elif val < .6:
+            model_key = 'grass'
+        else:
+            model_key = 'mountains'
+        create_dict = {
+            'terrain': {'model': model_key, 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['terrain'])
+
+    def init_component(self, component_index, entity_id, zone, args):
         component = self.components[component_index]
         component.entity_id = entity_id
-        component.model = args.get('model')
+        component.model = '{}_{}'.format(self.atlas, args.get('model'))
         component.tile_pos = tx, ty = args.get('tile_pos')
         component.current_entity = None
         component.dirty = True
         self.tiles[(tx, ty)] = component_index
 
 
-class Terrain(TileSystem):
-    tile_models = [
-        {'texture_file': 'desert.png',
-         'model': 'desert',
-         'cw_rotate': 0,
-         'mirror_vert': False,
-         'mirror_horz': False},
-        {'texture_file': 'grass.png',
-         'model': 'grass',
-         'cw_rotate': 0,
-         'mirror_vert': False,
-         'mirror_horz': False},
-        {'texture_file': 'hills.png',
-         'model': 'hills',
-         'cw_rotate': 0,
-         'mirror_vert': False,
-         'mirror_horz': False},
-        {'texture_file': 'wetland.png',
-         'model': 'wetland',
-         'cw_rotate': 0,
-         'mirror_vert': False,
-         'mirror_horz': False},
-        {'texture_file': 'mountains.png',
-         'model': 'mountains',
-         'cw_rotate': 0,
-         'mirror_vert': False,
-         'mirror_horz': False},
-            ]
+class Roads(TileSystem):
+    atlas = 'road'
+
+    model_map = {
+            '0000': 'road_start',
+            '0001': 'road_end_W',
+            '0010': 'road_end_E',
+            '0011': 'road_plain_EW',
+            '0100': 'road_end_S',
+            '0101': 'road_L_SW',
+            '0110': 'road_L_SE',
+            '0111': 'road_T_S',
+            '1000': 'road_end_N',
+            '1001': 'road_L_NW',
+            '1010': 'road_L_NE',
+            '1011': 'road_T_N',
+            '1100': 'road_plain_NS',
+            '1101': 'road_T_W',
+            '1110': 'road_T_E',
+            '1111': 'road_cross',
+            }
+
+    def gen_new_tile(self, x, y):
+        # present = (x % 2) or (y % 2)
+        present = abs(x + y**2) < 8
+        create_dict = {
+            'roads': {'present': present, 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['roads'])
+
+    def init_component(self, component_index, entity_id, zone, args):
+        component = self.components[component_index]
+        component.entity_id = entity_id
+        component.present = args.get('present')
+        component.tile_pos = tx, ty = args.get('tile_pos')
+        component.current_entity = None
+        component.dirty = True
+        self.tiles[(tx, ty)] = component_index
+
+    def get_model_at_tile(self, component_index):
+        component = self.components[component_index]
+        if not component.present:
+            return 'road_blank'
+        tx, ty = component.tile_pos
+        neighbors = []
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            x, y = tx+dx, ty+dy
+            self.ensure_tile_exists(x, y)
+            neighbor_index = self.tiles[(x, y)]
+            neighbor_comp = self.components[neighbor_index]
+            neighbors.append(str(int(neighbor_comp.present)))
+        key = ''.join(neighbors)
+        return self.model_map[key]
 
 Factory.register('TileSystem', cls=TileSystem)
 Factory.register('Terrain', cls=Terrain)
+Factory.register('Roads', cls=Roads)

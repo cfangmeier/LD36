@@ -1,0 +1,8 @@
+{"terrain-0.png":
+  {"terrain_field": [134, 190, 64, 64],
+   "terrain_desert": [68, 190, 64, 64],
+   "terrain_grass": [2, 124, 64, 64],
+   "terrain_wetland": [2, 58, 64, 64],
+   "terrain_blank": [2, 190, 64, 64],
+   "terrain_hills": [68, 124, 64, 64],
+   "terrain_mountains": [134, 124, 64, 64]}}

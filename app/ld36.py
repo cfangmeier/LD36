@@ -7,7 +7,6 @@ from kivy.core.audio import SoundLoader
 from kivy.uix.widget import Widget
 
 
-import noise
 
 from app.utils import asset_path
 
@@ -23,7 +22,8 @@ class Game(Widget):
         super().__init__(**kwargs)
         self.in_motion = False
         gamesystems = ['renderer', 'position',
-                       'camera1', 'terrain']
+                       'camera1', 'terrain',
+                       'roads']
         self.gameworld.init_gameworld(gamesystems, callback=self.init_game)
 
     def init_game(self):
@@ -32,6 +32,7 @@ class Game(Widget):
         self.setup_sound()
         self.setup_states()
         self.gameworld.terrain.setup()
+        self.gameworld.roads.setup()
         self.set_state()
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
@@ -63,6 +64,7 @@ class Game(Widget):
             anim.on_complete = motion_complete
             anim.start(self.gameworld.camera)
             self.gameworld.terrain.tile_trigger()
+            self.gameworld.roads.tile_trigger()
 
         elif text in '=-':
             scale = self.gameworld.camera.camera_scale
@@ -79,6 +81,8 @@ class Game(Widget):
                                         0.5*size_y*scale_new-center_y)
                 self.gameworld.camera.camera_scale = scale_new
                 self.gameworld.camera.camera_pos = pos_x_new, pos_y_new
+                self.gameworld.terrain.tile_trigger()
+                self.gameworld.roads.tile_trigger()
         elif text == '/':
             print('Window Size:', Window.size)
             print("Camera Position: ", self.gameworld.camera.camera_pos)
@@ -141,19 +145,6 @@ class Game(Widget):
             self.sounds[next_sound].volume = 1
         self.sounds[next_sound].play()
 
-    def gen_terrain_tile(self, x, y):
-        scale = 20
-        val = noise.snoise2(x/scale, y/scale)
-        if val < -.6:
-            model_key = 'wetland'
-        elif val < .6:
-            model_key = 'grass'
-        else:
-            model_key = 'mountains'
-        create_dict = {
-            'terrain': {'model': model_key, 'tile_pos': (x, y)},
-        }
-        self.gameworld.init_entity(create_dict, ['terrain'])
 
 
 class LD36(App):

@@ -1,6 +1,7 @@
 #:kivy 1.9.0
 #:import asset_path app.ld36.asset_path
-#:import TileSystem app.tilesystem.Terrain
+#:import Terrain app.tilesystem.Terrain
+#:import Roads app.tilesystem.Roads
 
 Game:
 
@@ -14,6 +15,7 @@ Game:
         zones: {'general': 160000}
         camera: camera1
         terrain: terrain
+        roads: roads
         PositionSystem2D:
             system_id: 'position'
             gameworld: gameworld
@@ -42,6 +44,12 @@ Game:
             camera_pos: camera1.camera_pos
             camera_size: camera1.size
             camera_scale: camera1.camera_scale
-            gen_new_tile: root.gen_terrain_tile
+        Roads:
+            system_id: 'roads'
+            id: roads
+            gameworld: gameworld
+            camera_pos: camera1.camera_pos
+            camera_size: camera1.size
+            camera_scale: camera1.camera_scale
     GameScreenManager:
         id: gamescreenmanager
