@@ -23,16 +23,16 @@ class Game(Widget):
         self.in_motion = False
         gamesystems = ['renderer', 'position',
                        'camera1', 'terrain',
-                       'roads']
+                       'roads', 'buildings']
         self.gameworld.init_gameworld(gamesystems, callback=self.init_game)
 
     def init_game(self):
-        print("Initing Game")
         Window.size = (64*15, 64*15)
         self.setup_sound()
         self.setup_states()
         self.gameworld.terrain.setup()
         self.gameworld.roads.setup()
+        self.gameworld.buildings.setup()
         self.set_state()
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
@@ -106,14 +106,14 @@ class Game(Widget):
         tile_pos = ((world_pos[0]+tile_width/2)//tile_width,
                     (world_pos[1]+tile_height/2)//tile_height)
         comp = self.gameworld.buildings.get_tile(*tile_pos)
-        cycle = {'blank': 'well',
-                 'well': 'house',
-                 'house': 'granary',
-                 'granary': 'field',
-                 'field': 'blank'}
+        cycle = {'building_blank': 'building_well',
+                 'building_well': 'building_house',
+                 'building_house': 'building_granary',
+                 'building_granary': 'building_field',
+                 'building_field': 'building_blank'}
         self.gameworld.buildings.set_tile(tile_pos[0],
                                           tile_pos[1],
-                                          texture=cycle[comp.texture])
+                                          model=cycle[comp.model])
 
     def setup_states(self):
         self.gameworld.add_state(state_name='main',

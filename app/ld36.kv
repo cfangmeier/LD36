@@ -11,11 +11,12 @@ Game:
         id: gameworld
         gamescreenmanager: gamescreenmanager
         size_of_gameworld: 100*1024
-        system_count: 4
+        system_count: 5
         zones: {'general': 160000}
         camera: camera1
         terrain: terrain
         roads: roads
+        buildings: buildings
         PositionSystem2D:
             system_id: 'position'
             gameworld: gameworld
@@ -47,6 +48,13 @@ Game:
         Roads:
             system_id: 'roads'
             id: roads
+            gameworld: gameworld
+            camera_pos: camera1.camera_pos
+            camera_size: camera1.size
+            camera_scale: camera1.camera_scale
+        Buildings:
+            system_id: 'buildings'
+            id: buildings
             gameworld: gameworld
             camera_pos: camera1.camera_pos
             camera_size: camera1.size

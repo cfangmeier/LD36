@@ -1,4 +1,3 @@
-from itertools import product
 
 from kivy.clock import Clock
 from kivy.properties import NumericProperty, ListProperty
@@ -32,7 +31,8 @@ class TileSystem(GameSystem):
 
     def setup(self):
         import json
-        atlas_path = asset_path('{}.atlas'.format(self.atlas), 'assets/textures')
+        atlas_path = asset_path('{}.atlas'.format(self.atlas),
+                                'assets/textures')
         texture_manager.load_atlas(atlas_path)
         ld_rec = self.gameworld.model_manager.load_textured_rectangle
         with open(atlas_path) as atlas:
@@ -75,7 +75,6 @@ class TileSystem(GameSystem):
                 tile_comp = self.components[component_index]
                 screen_pos = screen_pos_from_tile_pos(tile_comp.tile_pos)
                 model = self.get_model_at_tile(component_index)
-                # print(model)
                 create_dict = {
                     'position': screen_pos,
                     'renderer': {'texture': model,
@@ -131,12 +130,18 @@ class TileSystem(GameSystem):
         return self.components[component_index].model
 
     def get_tile(self, x, y):
-        self.ensure_tile_exists()
+        self.ensure_tile_exists(x, y)
         component = self.components[self.tiles[(x, y)]]
         return component
 
     def init_component(self, component_index, entity_id, zone, args):
-        raise NotImplementedError("Override this in the subclass!")
+        component = self.components[component_index]
+        component.entity_id = entity_id
+        component.model = '{}_{}'.format(self.atlas, args.get('model'))
+        component.tile_pos = tx, ty = args.get('tile_pos')
+        component.current_entity = None
+        component.dirty = True
+        self.tiles[(tx, ty)] = component_index
 
     def gen_new_tile(self, x, y):
         raise NotImplementedError("Override this in the subclass!")
@@ -159,15 +164,6 @@ class Terrain(TileSystem):
             'terrain': {'model': model_key, 'tile_pos': (x, y)},
         }
         self.gameworld.init_entity(create_dict, ['terrain'])
-
-    def init_component(self, component_index, entity_id, zone, args):
-        component = self.components[component_index]
-        component.entity_id = entity_id
-        component.model = '{}_{}'.format(self.atlas, args.get('model'))
-        component.tile_pos = tx, ty = args.get('tile_pos')
-        component.current_entity = None
-        component.dirty = True
-        self.tiles[(tx, ty)] = component_index
 
 
 class Roads(TileSystem):
@@ -193,7 +189,6 @@ class Roads(TileSystem):
             }
 
     def gen_new_tile(self, x, y):
-        # present = (x % 2) or (y % 2)
         present = abs(x + y**2) < 8
         create_dict = {
             'roads': {'present': present, 'tile_pos': (x, y)},
@@ -201,13 +196,13 @@ class Roads(TileSystem):
         self.gameworld.init_entity(create_dict, ['roads'])
 
     def init_component(self, component_index, entity_id, zone, args):
-        component = self.components[component_index]
-        component.entity_id = entity_id
-        component.present = args.get('present')
-        component.tile_pos = tx, ty = args.get('tile_pos')
-        component.current_entity = None
-        component.dirty = True
-        self.tiles[(tx, ty)] = component_index
+        x, y = args.get('tile_pos')
+        self.tiles[(x, y)] = component_index
+        self.set_tile(x, y,
+                      entity_id=entity_id,
+                      current_entity=None,
+                      present=args.get('present', False),
+                      tile_pos=(x, y))
 
     def get_model_at_tile(self, component_index):
         component = self.components[component_index]
@@ -217,13 +212,40 @@ class Roads(TileSystem):
         neighbors = []
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             x, y = tx+dx, ty+dy
-            self.ensure_tile_exists(x, y)
-            neighbor_index = self.tiles[(x, y)]
-            neighbor_comp = self.components[neighbor_index]
-            neighbors.append(str(int(neighbor_comp.present)))
+            if (x, y) in self.tiles:
+                neighbor_index = self.tiles[(x, y)]
+                neighbor_comp = self.components[neighbor_index]
+                neighbors.append(str(int(neighbor_comp.present)))
+            else:
+                neighbors.append('0')
         key = ''.join(neighbors)
         return self.model_map[key]
+
+    def set_tile(self, x, y, **kwargs):
+        self.ensure_tile_exists(x, y)
+        component = self.components[self.tiles[(x, y)]]
+        for key, val in kwargs.items():
+            setattr(component, key, val)
+        for dx, dy in [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]:
+            tx, ty = x+dx, y+dy
+            try:
+                self.components[self.tiles[(tx, ty)]].dirty = True
+            except KeyError:
+                pass
+        self.tile_trigger()
+
+
+class Buildings(TileSystem):
+    atlas = 'building'
+
+    def gen_new_tile(self, x, y):
+        create_dict = {
+            'buildings': {'model': 'blank', 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['buildings'])
+
 
 Factory.register('TileSystem', cls=TileSystem)
 Factory.register('Terrain', cls=Terrain)
 Factory.register('Roads', cls=Roads)
+Factory.register('Buildings', cls=Buildings)
