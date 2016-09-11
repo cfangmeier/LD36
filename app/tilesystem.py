@@ -7,7 +7,7 @@ from kivent_core.managers.resource_managers import texture_manager
 from kivy.factory import Factory
 
 from app.utils import asset_path
-from app.config import TILE_WIDTH, TILE_HEIGHT, SCALE_STEP
+from app.config import TILE_WIDTH, TILE_HEIGHT
 
 
 class TileSystem(GameSystem):

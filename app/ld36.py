@@ -93,9 +93,6 @@ class Game(Widget):
             print("Camera Scale: ", self.gameworld.camera.camera_scale)
         elif text == ' ':
             pass
-            # building = self.gameworld.buildings.get_tile(*tile_pos).texture
-            # background = self.gameworld.buildings.get_tile(*tile_pos).texture
-            # print('Tile at player position: {}:{}'.format(building, background))
         elif text == 'q':
             Window.close()
         return True
@@ -128,9 +125,6 @@ class Game(Widget):
             self.gameworld.buildings.set_tile(tile_pos[0],
                                               tile_pos[1],
                                               'blank')
-            # tile_pos = self.window_pos_to_tile_pos(*event.pos)
-            # comp = self.gameworld.roads.get_tile(*tile_pos)
-            # if comp.
 
     def setup_states(self):
         self.gameworld.add_state(state_name='main',
