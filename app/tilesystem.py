@@ -1,3 +1,4 @@
+from enum import IntEnum
 
 from kivy.clock import Clock
 from kivy.properties import NumericProperty, ListProperty
@@ -6,24 +7,17 @@ from kivent_core.managers.resource_managers import texture_manager
 from kivy.factory import Factory
 
 from app.utils import asset_path
-
-#  TODO: Subclass TileSystem
-#        Terrain
-#        Buildings
-#        Roads
-#        Roads
+from app.config import TILE_WIDTH, TILE_HEIGHT, SCALE_STEP
 
 
 class TileSystem(GameSystem):
-    tile_width = NumericProperty(64.)
-    tile_height = NumericProperty(64.)
     camera_pos = ListProperty(None, allownone=True)
     camera_size = ListProperty(None, allownone=True)
     camera_scale = NumericProperty(1.)
     atlas = None
 
     def __init__(self, **kwargs):
-        super(TileSystem, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.tiles_on_screen_last_frame = set()
         self.tile_trigger = Clock.create_trigger(self.handle_tile_drawing)
         self.tiles = {}
@@ -69,7 +63,7 @@ class TileSystem(GameSystem):
 
             for component_index in to_rem:
                 tile_comp = self.components[component_index]
-                remove_entity(tile_comp.current_entity)
+                remove_entity(tile_comp.graphics_entity)
                 tile_comp.current_entity = None
             for component_index in to_add:
                 tile_comp = self.components[component_index]
@@ -81,7 +75,7 @@ class TileSystem(GameSystem):
                                  'model_key': model}
                     }
                 ent = init_entity(create_dict, ['position', 'renderer'])
-                tile_comp.current_entity = ent
+                tile_comp.graphics_entity = ent
                 tile_comp.dirty = False
 
     def get_screen_pos_from_tile_pos(self, tile_pos):
@@ -89,23 +83,21 @@ class TileSystem(GameSystem):
         return wx, wy
 
     def get_world_pos_from_tile_pos(self, tile_pos):
-        return (tile_pos[0] * self.tile_width,
-                tile_pos[1] * self.tile_height)
+        return (tile_pos[0] * TILE_WIDTH,
+                tile_pos[1] * TILE_HEIGHT)
 
     def get_tile_at_world_pos(self, world_pos):
-        return (int(world_pos[0] // self.tile_width),
-                int(world_pos[1] // self.tile_height))
+        return (int(world_pos[0] // TILE_WIDTH),
+                int(world_pos[1] // TILE_HEIGHT))
 
     def calculate_tiles_in_view(self):
         cx, cy = -self.camera_pos[0], -self.camera_pos[1]
         cw, ch = self.camera_size
         scale = self.camera_scale
-        tile_width = self.tile_width
-        tile_height = self.tile_height
-        x_count = int(scale*cw // tile_width) + 4
-        y_count = int(scale*ch // tile_height) + 4
-        starting_x = int(cx/tile_width) - 1
-        starting_y = int(cy/tile_height) - 1
+        x_count = int(scale*cw // TILE_WIDTH) + 4
+        y_count = int(scale*ch // TILE_HEIGHT) + 4
+        starting_x = int(cx/TILE_WIDTH) - 1
+        starting_y = int(cy/TILE_HEIGHT) - 1
         end_x = starting_x + x_count
         end_y = starting_y + y_count
         tiles_in_view = []
@@ -127,7 +119,9 @@ class TileSystem(GameSystem):
         self.tile_trigger()
 
     def get_model_at_tile(self, component_index):
-        return self.components[component_index].model
+        type_ = self.components[component_index].type
+        model_name = '{}_{}'.format(self.atlas, type_.name)
+        return model_name
 
     def get_tile(self, x, y):
         self.ensure_tile_exists(x, y)
@@ -137,7 +131,7 @@ class TileSystem(GameSystem):
     def init_component(self, component_index, entity_id, zone, args):
         component = self.components[component_index]
         component.entity_id = entity_id
-        component.model = '{}_{}'.format(self.atlas, args.get('model'))
+        component.type = args.get('type')
         component.tile_pos = tx, ty = args.get('tile_pos')
         component.current_entity = None
         component.dirty = True
@@ -150,83 +144,91 @@ class TileSystem(GameSystem):
 class Terrain(TileSystem):
     atlas = 'terrain'
 
+    class Type(IntEnum):
+        blank = 0
+        desert = 1
+        grass = 2
+        hills = 3
+        mountains = 4
+        wetland = 5
+
     def gen_new_tile(self, x, y):
         import noise
         scale = 20
         val = noise.snoise2(x/scale, y/scale)
         if val < -.6:
-            model_key = 'hills'
+            type_ = Terrain.Type.hills
         elif val < .6:
-            model_key = 'grass'
+            type_ = Terrain.Type.grass
         else:
-            model_key = 'mountains'
+            type_ = Terrain.Type.mountains
         create_dict = {
-            'terrain': {'model': model_key, 'tile_pos': (x, y)},
+            'terrain': {'type': type_, 'tile_pos': (x, y)},
         }
         self.gameworld.init_entity(create_dict, ['terrain'])
 
 
-class Roads(TileSystem):
-    atlas = 'road'
+class Buildings(TileSystem):
+    atlas = 'building'
 
-    model_map = {
-            '0000': 'road_start',
-            '0001': 'road_end_W',
-            '0010': 'road_end_E',
-            '0011': 'road_plain_EW',
-            '0100': 'road_end_S',
-            '0101': 'road_L_SW',
-            '0110': 'road_L_SE',
-            '0111': 'road_T_S',
-            '1000': 'road_end_N',
-            '1001': 'road_L_NW',
-            '1010': 'road_L_NE',
-            '1011': 'road_T_N',
-            '1100': 'road_plain_NS',
-            '1101': 'road_T_W',
-            '1110': 'road_T_E',
-            '1111': 'road_cross',
-            }
+    class Type(IntEnum):
+        blank = 0
+        field = 1
+        granary = 2
+        house = 3
+        temple = 4
+        well = 5
+        road = 6
 
-    def gen_new_tile(self, x, y):
-        present = abs(x + y**2) < 8
-        create_dict = {
-            'roads': {'present': present, 'tile_pos': (x, y)},
-        }
-        self.gameworld.init_entity(create_dict, ['roads'])
-
-    def init_component(self, component_index, entity_id, zone, args):
-        x, y = args.get('tile_pos')
-        self.tiles[(x, y)] = component_index
-        self.set_tile(x, y,
-                      entity_id=entity_id,
-                      current_entity=None,
-                      present=args.get('present', False),
-                      tile_pos=(x, y))
-
-    def get_model_at_tile(self, component_index):
+    def get_road_texture(self, component_index):
+        road_texture_lookup = {
+                '0000': 'road_start', '0001': 'road_end_W',
+                '0010': 'road_end_E', '0011': 'road_plain_EW',
+                '0100': 'road_end_S', '0101': 'road_L_SW',
+                '0110': 'road_L_SE', '0111': 'road_T_S',
+                '1000': 'road_end_N', '1001': 'road_L_NW',
+                '1010': 'road_L_NE', '1011': 'road_T_N',
+                '1100': 'road_plain_NS', '1101': 'road_T_W',
+                '1110': 'road_T_E', '1111': 'road_cross'}
         component = self.components[component_index]
-        if not component.present:
-            return 'road_blank'
+        road_type = Buildings.Type.road
         tx, ty = component.tile_pos
         neighbors = []
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             x, y = tx+dx, ty+dy
             if (x, y) in self.tiles:
                 neighbor_index = self.tiles[(x, y)]
-                neighbor_comp = self.components[neighbor_index]
-                neighbors.append(str(int(neighbor_comp.present)))
+                building_type = self.components[neighbor_index].type
+                has_road = '1' if building_type == road_type else '0'
+                neighbors.append(has_road)
             else:
                 neighbors.append('0')
         key = ''.join(neighbors)
-        return self.model_map[key]
+        return road_texture_lookup[key]
 
-    def set_tile(self, x, y, **kwargs):
+    def get_model_at_tile(self, component_index):
+        building_type = self.components[component_index].type
+        if building_type == Buildings.Type.road:
+            texture = self.get_road_texture(component_index)
+        else:
+            texture = building_type.name
+        return '{}_{}'.format(self.atlas, texture)
+
+    def gen_new_tile(self, x, y):
+        create_dict = {
+            'buildings': {'type': Buildings.Type.blank, 'tile_pos': (x, y)},
+        }
+        self.gameworld.init_entity(create_dict, ['buildings'])
+
+    def set_tile(self, x, y, building_type):
+        if type(building_type) == str:
+            building_type = Buildings.Type[building_type]
         self.ensure_tile_exists(x, y)
         component = self.components[self.tiles[(x, y)]]
-        for key, val in kwargs.items():
-            setattr(component, key, val)
-        for dx, dy in [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]:
+        component.type = building_type
+        component.tile_pos = (x, y)
+        component.dirty = True
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             tx, ty = x+dx, y+dy
             try:
                 self.components[self.tiles[(tx, ty)]].dirty = True
@@ -235,17 +237,6 @@ class Roads(TileSystem):
         self.tile_trigger()
 
 
-class Buildings(TileSystem):
-    atlas = 'building'
-
-    def gen_new_tile(self, x, y):
-        create_dict = {
-            'buildings': {'model': 'blank', 'tile_pos': (x, y)},
-        }
-        self.gameworld.init_entity(create_dict, ['buildings'])
-
-
 Factory.register('TileSystem', cls=TileSystem)
 Factory.register('Terrain', cls=Terrain)
-Factory.register('Roads', cls=Roads)
 Factory.register('Buildings', cls=Buildings)
