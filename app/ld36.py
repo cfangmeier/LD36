@@ -10,6 +10,10 @@ from kivy.uix.widget import Widget
 from app.utils import asset_path
 from app.config import TILE_WIDTH, TILE_HEIGHT, SCALE_STEP
 
+import pyximport
+pyximport.install()
+import app.tilesystem
+
 
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 MUTE = True
