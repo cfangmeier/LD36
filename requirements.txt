@@ -1,5 +1,6 @@
+-U pip
 cython
 kivy
 noise
-
+-e kivent/modules/core/
 ipython

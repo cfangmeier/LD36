@@ -4,7 +4,6 @@ from distutils.core import setup
 from distutils.extension import Extension
 
 from Cython.Build import cythonize
-# from Cython.Distutils import build_ext
 import sys
 
 platform = sys.platform
@@ -42,11 +41,10 @@ velocity_extensions = build_extensions_for_modules(velocity_modules)
 
 
 setup(
-    name='KivEnt Velocity Module',
-    description='''A game engine for the Kivy Framework.
-        https://github.com/Kovak/KivEnt for more info.''',
-    author='Jacob Kovac',
-    author_email='kovac1066@gmail.com',
+    name='Ludum Dare 36 Submission',
+    description='''Ludum Dare 36 Submission''',
+    author='Caleb Fangmeier',
+    author_email='caleb@fangmeier.tech',
     ext_modules=velocity_extensions,
     cmdclass={},
     packages=[
